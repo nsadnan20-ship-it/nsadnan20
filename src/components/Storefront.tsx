@@ -18,6 +18,9 @@ import { supabase } from '@/lib/supabase';
 import { fetchCustomerAddresses, type CustomerAddress } from '@/lib/customer-addresses';
 import { fetchCustomerPurchaseLists, saveCustomerPurchaseList, deleteCustomerPurchaseList, type PurchaseList } from '@/lib/customer-purchase-lists';
 
+import { fetchProductReviews, fetchReviewStats, submitReview, renderStars, type ProductReview, type ReviewStats } from '@/lib/product-reviews';
+import { Star } from 'lucide-react';
+
 type CartItem = { product: ProductWithInventory; quantity: number };
 type StoreView = 'shop' | 'product' | 'wishlist' | 'compare' | 'matrix' | 'cart' | 'checkout' | 'confirm';
 export type StorefrontInitialView = 'shop' | 'product' | 'wishlist' | 'compare' | 'cart' | 'checkout';
