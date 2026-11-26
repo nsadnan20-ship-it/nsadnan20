@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { fetchProducts, fetchCategories, fetchStorefrontPromotions, fetchSettingsMap, fetchStorefrontAnnouncements } from '@/lib/api';
 import { useFetch } from '@/lib/useFetch';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { formatCurrency, formatDateShort, formatNumber } from '@/lib/format';
 import { matchesArabicCatalogSearch, normalizeCatalogSearchQuery, MAX_CATALOG_SEARCH_LENGTH, normalizeSavedProductIds, sanitizePublicCatalogCache, validateQuickOrderLines } from '@/lib/commerce-utils';
 import { loadOfflineCartDraft, offlineCartStorageKey, saveOfflineCartDraft } from '@/lib/offline-cart';
 import type { ProductWithInventory, Category, Promotion } from '@/lib/types';
@@ -464,7 +464,105 @@ function ProductGrid({ products, wishlist, compare, emptyTitle, emptyDescription
 
 function ProductDetail({ product, inWishlist, inCompare, onBack, onAdd, onWishlist, onCompare }: { product: ProductWithInventory; inWishlist: boolean; inCompare: boolean; onBack: () => void; onAdd: () => void; onWishlist: () => void; onCompare: () => void }) {
   const quantity = product.inventory?.quantity_available ?? 0;
-  return <section className="sf-product-detail"><button className="sf-back-link" onClick={onBack}><ArrowRight size={16} /> العودة للكتالوج</button><div className="sf-detail-layout"><div className="sf-detail-image">{product.image_url ? <img src={product.image_url} alt={product.name} /> : <Package size={72} />}<span className="sf-detail-code">SKU: {product.item_code}</span></div><div className="sf-detail-content"><span className="sf-detail-category">{product.category?.name ?? 'غير مصنف'}</span><h2>{product.name}</h2><p className="sf-detail-description">{product.description || 'منتج متوفر للطلب بالجملة من متجر الأغبري.'}</p><div className="sf-detail-price"><strong>{typeof product.display_price === 'number' ? formatCurrency(product.display_price) : 'اتصل بالإنترنت لعرض سعر فئتك'}</strong><span>لكل {product.unit}</span></div><div className={`sf-detail-stock ${quantity > 0 ? 'available' : 'unavailable'}`}>{quantity > 0 ? `متوفر حالياً: ${formatNumber(quantity)} ${product.unit}` : 'هذا المنتج غير متوفر حالياً'}</div><div className="sf-detail-actions"><button className="sf-btn-primary" disabled={quantity <= 0} onClick={onAdd}><ShoppingCart size={17} /> إضافة إلى السلة</button><button className={`sf-icon-action ${inWishlist ? 'active' : ''}`} onClick={onWishlist}><Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} /> {inWishlist ? 'في المفضلة' : 'أضف للمفضلة'}</button><button className={`sf-icon-action ${inCompare ? 'active' : ''}`} onClick={onCompare}><GitCompare size={18} /> مقارنة</button></div><div className="sf-detail-facts"><div><strong>الوحدة</strong><span>{product.unit}</span></div><div><strong>الحد الأدنى</strong><span>حسب اتفاق العميل</span></div><div><strong>السعر</strong><span>السعر الظاهر قبل تأكيد الطلب</span></div></div></div></div></section>;
+  const { user } = useAuth();
+  return <section className="sf-product-detail"><button className="sf-back-link" onClick={onBack}><ArrowRight size={16} /> العودة للكتالوج</button><div className="sf-detail-layout"><div className="sf-detail-image">{product.image_url ? <img src={product.image_url} alt={product.name} /> : <Package size={72} />}<span className="sf-detail-code">SKU: {product.item_code}</span></div><div className="sf-detail-content"><span className="sf-detail-category">{product.category?.name ?? 'غير مصنف'}</span><h2>{product.name}</h2><p className="sf-detail-description">{product.description || 'منتج متوفر للطلب بالجملة من متجر الأغبري.'}</p><div className="sf-detail-price"><strong>{typeof product.display_price === 'number' ? formatCurrency(product.display_price) : 'اتصل بالإنترنت لعرض سعر فئتك'}</strong><span>لكل {product.unit}</span></div><div className={`sf-detail-stock ${quantity > 0 ? 'available' : 'unavailable'}`}>{quantity > 0 ? `متوفر حالياً: ${formatNumber(quantity)} ${product.unit}` : 'هذا المنتج غير متوفر حالياً'}</div><div className="sf-detail-actions"><button className="sf-btn-primary" disabled={quantity <= 0} onClick={onAdd}><ShoppingCart size={17} /> إضافة إلى السلة</button><button className={`sf-icon-action ${inWishlist ? 'active' : ''}`} onClick={onWishlist}><Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} /> {inWishlist ? 'في المفضلة' : 'أضف للمفضلة'}</button><button className={`sf-icon-action ${inCompare ? 'active' : ''}`} onClick={onCompare}><GitCompare size={18} /> مقارنة</button></div><div className="sf-detail-facts"><div><strong>الوحدة</strong><span>{product.unit}</span></div><div><strong>الحد الأدنى</strong><span>حسب اتفاق العميل</span></div><div><strong>السعر</strong><span>السعر الظاهر قبل تأكيد الطلب</span></div></div></div></div><ProductReviewsPanel productId={product.id} isCustomer={Boolean(user && !user.isStaff)} /></section>;
+}
+
+function ProductReviewsPanel({ productId, isCustomer }: { productId: string; isCustomer: boolean }) {
+  const [reviews, setReviews] = useState<ProductReview[] | null>(null);
+  const [stats, setStats] = useState<ReviewStats | null>(null);
+  const [error, setError] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitResult, setSubmitResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [reload, setReload] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setReviews(null);
+    setError('');
+    void (async () => {
+      try {
+        const [rows, reviewStats] = await Promise.all([
+          fetchProductReviews(productId),
+          fetchReviewStats(productId),
+        ]);
+        if (!active) return;
+        setReviews(rows);
+        setStats(reviewStats);
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : 'تعذر تحميل التقييمات');
+      }
+    })();
+    return () => { active = false; };
+  }, [productId, reload]);
+
+  async function submit() {
+    setSubmitting(true);
+    setSubmitResult(null);
+    try {
+      await submitReview({ product_id: productId, rating, title: title.trim() || undefined, body: body.trim() || undefined });
+      setSubmitResult({ ok: true, message: 'تم إرسال تقييمك وسيظهر بعد مراجعة الإدارة.' });
+      setFormOpen(false);
+      setRating(5);
+      setTitle('');
+      setBody('');
+    } catch (e) {
+      setSubmitResult({ ok: false, message: e instanceof Error ? e.message : 'تعذر إرسال التقييم' });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <section className="sf-reviews" style={{ marginTop: 28 }}>
+      <div className="sf-products-head">
+        <div>
+          <h2><Star size={20} /> تقييمات المنتج</h2>
+          <span>{stats && stats.review_count > 0
+            ? `${renderStars(Math.round(stats.avg_rating))} ${stats.avg_rating} من 5 — ${stats.review_count} تقييم معتمد`
+            : 'لا توجد تقييمات معتمدة بعد'}</span>
+        </div>
+        {isCustomer && <button className="sf-btn-secondary" onClick={() => setFormOpen((v) => !v)}><Star size={15} /> {formOpen ? 'إغلاق النموذج' : 'أضف تقييمك'}</button>}
+      </div>
+      {formOpen && (
+        <div className="sf-review-form" style={{ margin: '12px 0', padding: 16, borderRadius: 12, background: '#f6fafb', border: '1px solid #d8e8e8' }}>
+          <div className="sf-form-field"><span>التقييم *</span>
+            <div role="radiogroup" aria-label="عدد النجوم" style={{ display: 'flex', gap: 4 }}>
+              {[1, 2, 3, 4, 5].map((value) => (
+                <button key={value} type="button" role="radio" aria-checked={rating === value} aria-label={`${value} من 5`} onClick={() => setRating(value)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
+                  <Star size={22} color={value <= rating ? '#b8860b' : '#c8d8da'} fill={value <= rating ? '#b8860b' : 'none'} />
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="sf-form-field"><span>عنوان التقييم</span><input value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder="مثال: جودة ممتازة وسرعة توريد" /></label>
+          <label className="sf-form-field"><span>تجربتك مع المنتج</span><textarea value={body} maxLength={2000} rows={3} onChange={(e) => setBody(e.target.value)} placeholder="اكتب رأيك في جودة المنتج وسرعة التوريد..." /></label>
+          <button className="sf-btn-primary" disabled={submitting} onClick={() => void submit()}>{submitting ? 'جارٍ الإرسال...' : 'إرسال التقييم للمراجعة'}</button>
+        </div>
+      )}
+      {submitResult && <div role={submitResult.ok ? 'status' : 'alert'} className={submitResult.ok ? 'sf-form-error' : 'sf-form-error'} style={{ color: submitResult.ok ? '#1c7a3d' : '#9b2626', marginBottom: 10 }}>{submitResult.message}</div>}
+      {error && <div className="sf-form-error" role="alert">{error} <button className="sf-link" onClick={() => setReload((n) => n + 1)}>إعادة المحاولة</button></div>}
+      {!error && reviews !== null && reviews.length === 0 && <div className="sf-empty"><Star size={26} /><span>كن أول من يقيّم هذا المنتج بعد شرائه.</span></div>}
+      {!error && reviews && reviews.length > 0 && (
+        <div className="sf-review-list" style={{ display: 'grid', gap: 12 }}>
+          {reviews.map((review) => (
+            <article key={review.id} style={{ padding: 14, borderRadius: 12, background: '#fff', border: '1px solid #e2eeee' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <strong style={{ color: '#b8860b', letterSpacing: 1 }}>{renderStars(review.rating)}</strong>
+                <time style={{ color: '#71868a', fontSize: 12 }}>{formatDateShort(review.created_at)}</time>
+              </div>
+              {review.title && <h3 style={{ margin: '6px 0 2px', fontSize: 15 }}>{review.title}</h3>}
+              {review.body && <p style={{ margin: 0, lineHeight: 1.7, color: '#3d5a60' }}>{review.body}</p>}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function CollectionView({ title, icon: Icon, products, wishlist, compare, loading, error, onRetry, onOpen, onAdd, onWishlist, onCompare, onBack, empty }: {
