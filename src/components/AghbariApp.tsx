@@ -3,7 +3,7 @@ import {
   Activity, AlertTriangle, ArrowLeftRight, BarChart3, Bell, Bot, Box, Calculator, Check, ChevronLeft, ClipboardList, PackageCheck,
   CircleDollarSign, Database, FileText, LayoutDashboard, LogOut, Menu, Package,
   Pencil, Plus, RefreshCw, ScrollText, Search, Settings, ShoppingCart, SlidersHorizontal,
-  Smartphone, Store, Tag, Trash2, TrendingUp, Users, Zap,
+  Smartphone, Star, Store, Tag, Trash2, TrendingUp, Users, Zap,
 } from 'lucide-react';
 import {
   createCategory, createCustomer, createProduct, createPricingRule, deletePricingRule, deleteProduct, fetchAiAlerts,
@@ -22,7 +22,7 @@ import { Login } from '@/components/Login';
 
 import {
   AiCenter, Devices, Field, Loading, ErrorBox, Empty, Button,
-  TableWrap, Modal, Notifications, OrderDetail, SettingsPage, Suppliers,
+  TableWrap, Modal, Notifications, OrderDetail, ReviewModeration, SettingsPage, Suppliers,
 } from '@/components/AdminPages';
 import { OperationsCenter } from '@/components/OperationsCenter';
 import { buildBusinessSignals, buildBusinessStatusBreakdown } from '@/lib/business-intelligence';
@@ -46,7 +46,7 @@ import {
 } from '@/components/ui/command';
 import { DialogDescription, DialogTitle } from '@/components/ui/dialog';
 
-type View = 'dashboard' | 'products' | 'customers' | 'orders' | 'pricing' | 'offers' | 'reports' | 'data' | 'operations' | 'notifications' | 'ai' | 'suppliers' | 'devices' | 'settings' | 'quotes' | 'finance' | 'tasks' | 'audit' | 'stock-count' | 'inventory-transfers' | 'purchase-orders';
+type View = 'dashboard' | 'products' | 'customers' | 'orders' | 'pricing' | 'offers' | 'reports' | 'data' | 'operations' | 'notifications' | 'ai' | 'suppliers' | 'devices' | 'settings' | 'quotes' | 'finance' | 'tasks' | 'audit' | 'reviews' | 'stock-count' | 'inventory-transfers' | 'purchase-orders';
 type IconType = typeof LayoutDashboard;
 
 const nav: { id: View; label: string; icon: IconType }[] = [
@@ -58,6 +58,7 @@ const nav: { id: View; label: string; icon: IconType }[] = [
   { id: 'stock-count', label: 'الجرد الفعلي', icon: PackageCheck },
   { id: 'inventory-transfers', label: 'سجل تحويلات المخزون', icon: PackageCheck },
   { id: 'offers', label: 'العروض', icon: Tag },
+  { id: 'reviews', label: 'مراجعة التقييمات', icon: Star },
   { id: 'suppliers', label: 'الموردون', icon: Package },
   { id: 'purchase-orders', label: 'أوامر الشراء والاستلام', icon: PackageCheck },
   { id: 'devices', label: 'أجهزة العملاء', icon: Smartphone },
@@ -76,6 +77,7 @@ const nav: { id: View; label: string; icon: IconType }[] = [
 const adminPaths: Record<View, string> = {
   dashboard: '/admin', products: '/admin/products', customers: '/admin/customers', orders: '/admin/orders',
   pricing: '/admin/pricing', offers: '/admin/offers', reports: '/admin/reports', data: '/admin/data',
+  reviews: '/admin/reviews',
   operations: '/admin/operations', notifications: '/admin/notifications', ai: '/admin/ai',
   suppliers: '/admin/suppliers', devices: '/admin/devices', settings: '/admin/settings',
   quotes: '/admin/quotes', finance: '/admin/finance', tasks: '/admin/tasks', audit: '/admin/audit',
@@ -176,6 +178,7 @@ function AppContent({ initialView = 'dashboard' }: { initialView?: View }) {
           {view === 'orders' && orderDetailId && <OrderDetail orderId={orderDetailId} onBack={() => { if (navigationBlocked) { showNotice('اعتمد كميات وأسعار الطلب أو ألغِ المسودة قبل الرجوع.'); return; } setOrderDetailId(null); }} onNotice={showNotice} onBlockedChange={setNavigationBlocked} />}
           {view === 'pricing' && <Pricing onNotice={showNotice} />}
           {view === 'offers' && <Offers onNotice={showNotice} />}
+          {view === 'reviews' && <ReviewModeration onNotice={showNotice} />}
           {view === 'suppliers' && <Suppliers onNotice={showNotice} />}
           {view === 'purchase-orders' && <PurchaseOrdersPage />}
           {view === 'devices' && <Devices onNotice={showNotice} />}

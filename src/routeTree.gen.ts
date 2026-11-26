@@ -51,6 +51,7 @@ import { Route as AdminProductsRouteImport } from './routes/admin_.products'
 import { Route as AdminPurchaseOrdersRouteImport } from './routes/admin_.purchase-orders'
 import { Route as AdminQuotesRouteImport } from './routes/admin_.quotes'
 import { Route as AdminReportsRouteImport } from './routes/admin_.reports'
+import { Route as AdminReviewsRouteImport } from './routes/admin_.reviews'
 import { Route as AdminSettingsRouteImport } from './routes/admin_.settings'
 import { Route as AdminStockCountRouteImport } from './routes/admin_.stock-count'
 import { Route as AdminSuppliersRouteImport } from './routes/admin_.suppliers'
@@ -277,6 +278,11 @@ const AdminReportsRoute = AdminReportsRouteImport.update({
   path: '/admin/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminReviewsRoute = AdminReviewsRouteImport.update({
+  id: '/admin_/reviews',
+  path: '/admin/reviews',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/admin_/settings',
   path: '/admin/settings',
@@ -397,6 +403,7 @@ export interface FileRoutesByFullPath {
   '/admin/purchase-orders': typeof AdminPurchaseOrdersRoute
   '/admin/quotes': typeof AdminQuotesRoute
   '/admin/reports': typeof AdminReportsRoute
+  '/admin/reviews': typeof AdminReviewsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/stock-count': typeof AdminStockCountRoute
   '/admin/suppliers': typeof AdminSuppliersRoute
@@ -455,6 +462,7 @@ export interface FileRoutesByTo {
   '/admin/purchase-orders': typeof AdminPurchaseOrdersRoute
   '/admin/quotes': typeof AdminQuotesRoute
   '/admin/reports': typeof AdminReportsRoute
+  '/admin/reviews': typeof AdminReviewsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/stock-count': typeof AdminStockCountRoute
   '/admin/suppliers': typeof AdminSuppliersRoute
@@ -515,6 +523,7 @@ export interface FileRoutesById {
   '/admin_/purchase-orders': typeof AdminPurchaseOrdersRoute
   '/admin_/quotes': typeof AdminQuotesRoute
   '/admin_/reports': typeof AdminReportsRoute
+  '/admin_/reviews': typeof AdminReviewsRoute
   '/admin_/settings': typeof AdminSettingsRoute
   '/admin_/stock-count': typeof AdminStockCountRoute
   '/admin_/suppliers': typeof AdminSuppliersRoute
@@ -576,6 +585,7 @@ export interface FileRouteTypes {
     | '/admin/purchase-orders'
     | '/admin/quotes'
     | '/admin/reports'
+    | '/admin/reviews'
     | '/admin/settings'
     | '/admin/stock-count'
     | '/admin/suppliers'
@@ -634,6 +644,7 @@ export interface FileRouteTypes {
     | '/admin/purchase-orders'
     | '/admin/quotes'
     | '/admin/reports'
+    | '/admin/reviews'
     | '/admin/settings'
     | '/admin/stock-count'
     | '/admin/suppliers'
@@ -693,6 +704,7 @@ export interface FileRouteTypes {
     | '/admin_/purchase-orders'
     | '/admin_/quotes'
     | '/admin_/reports'
+    | '/admin_/reviews'
     | '/admin_/settings'
     | '/admin_/stock-count'
     | '/admin_/suppliers'
@@ -753,6 +765,7 @@ export interface RootRouteChildren {
   AdminPurchaseOrdersRoute: typeof AdminPurchaseOrdersRoute
   AdminQuotesRoute: typeof AdminQuotesRoute
   AdminReportsRoute: typeof AdminReportsRoute
+  AdminReviewsRoute: typeof AdminReviewsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStockCountRoute: typeof AdminStockCountRoute
   AdminSuppliersRoute: typeof AdminSuppliersRoute
@@ -1064,6 +1077,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/reviews': {
+      id: '/admin_/reviews'
+      path: '/admin/reviews'
+      fullPath: '/admin/reviews'
+      preLoaderRoute: typeof AdminReviewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin_/settings': {
       id: '/admin_/settings'
       path: '/admin/settings'
@@ -1228,6 +1248,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminPurchaseOrdersRoute: AdminPurchaseOrdersRoute,
   AdminQuotesRoute: AdminQuotesRoute,
   AdminReportsRoute: AdminReportsRoute,
+  AdminReviewsRoute: AdminReviewsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStockCountRoute: AdminStockCountRoute,
   AdminSuppliersRoute: AdminSuppliersRoute,

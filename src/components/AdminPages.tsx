@@ -7,12 +7,12 @@ const quiet: CSSProperties = { margin: 0, color: 'var(--muted-foreground, #64748
 const field: CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border, #cbd5e1)', background: 'var(--background, #fff)', font: 'inherit' };
 import {
   AlertTriangle, Bell, Bot, Check, ChevronLeft, Database,
-  Package, Plus, RefreshCw, Search, Settings, Smartphone,
+  Package, Plus, RefreshCw, Search, Settings, Smartphone, Star,
   X, ExternalLink, Save, Download,
 } from 'lucide-react';
 import {
   fetchAiAlerts, fetchAiTasks, fetchNotifications, fetchOrders, fetchOrderItems,
-  fetchSettings, fetchSuppliers, fetchAdminStorefrontAnnouncements, saveStorefrontAnnouncement,
+  fetchProducts, fetchSettings, fetchSuppliers, fetchAdminStorefrontAnnouncements, saveStorefrontAnnouncement,
   markAllNotificationsRead, markNotificationRead, resolveAiAlert, toggleAiTaskStatus,
   updateOrderStatus, reviewOrderLines, updateSetting, createSupplier,
   fetchAiGatewayBudget, configureAiGatewayBudget, testAiGatewayConnection,
@@ -22,6 +22,7 @@ import { useFetch } from '@/lib/useFetch';
 import { formatCurrency, formatDateShort, formatNumber, timeAgo } from '@/lib/format';
 import type { AiAlert, AiTask, Notification, Supplier, AdminSetting, OrderItem, StorefrontAnnouncement, StorefrontAnnouncementAudience, StorefrontAnnouncementInput } from '@/lib/types';
 import { buildOnyxOrderWorkbook, onyxOrderWorkbookFilename } from '@/lib/onyx-export';
+import { fetchPendingReviews, approveReview, renderStars, type ProductReview } from '@/lib/product-reviews';
 
 import type { LucideIcon } from 'lucide-react';
 import { getCurrentTenantScope, supabase } from '@/lib/supabase';
@@ -593,6 +594,47 @@ function SupplierModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const [name, setName] = useState(''); const [contact, setContact] = useState(''); const [phone, setPhone] = useState(''); const [error, setError] = useState('');
   async function save() { if (!name.trim()) { setError('اسم المورد مطلوب'); return; } try { await createSupplier({ name, contact_name: contact, phone, supplier_code: `SUP-${Date.now().toString().slice(-5)}`, status: 'active' }); onSaved(); } catch (e) { setError(e instanceof Error ? e.message : 'خطأ'); } }
   return <Modal title="إضافة مورد" onClose={onClose}><Field label="اسم المورد"><input value={name} onChange={(e) => setName(e.target.value)} /></Field><div className="form-grid"><Field label="جهة الاتصال"><input value={contact} onChange={(e) => setContact(e.target.value)} /></Field><Field label="الهاتف"><input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field></div>{error && <div className="form-error">{error}</div>}<div className="modal-actions"><Button variant="outline" onClick={onClose}>إلغاء</Button><Button onClick={save}>حفظ</Button></div></Modal>;
+}
+
+export function ReviewModeration({ onNotice }: { onNotice: (m: string) => void }) {
+  const { data: pending, loading, error, refetch } = useFetch(fetchPendingReviews);
+  const { data: products } = useFetch(fetchProducts);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const productName = (productId: string) => products?.find((p) => p.id === productId)?.name ?? 'منتج';
+  async function act(review: ProductReview, approve: boolean) {
+    setBusyId(review.id);
+    try {
+      await approveReview(review.id, approve);
+      onNotice(approve ? 'تم اعتماد التقييم وظهوره في المتجر' : 'تم رفض التقييم وحذفه');
+      refetch();
+    } catch (e) {
+      onNotice(e instanceof Error ? e.message : 'تعذر تنفيذ العملية');
+    } finally {
+      setBusyId(null);
+    }
+  }
+  return <AdminPage eyebrow="المتجر" title="مراجعة تقييمات العملاء" description="اعتماد أو رفض تقييمات المنتجات قبل ظهورها للعملاء" icon={Star} note={`${pending?.length ?? 0} تقييم معلق`} toolbar={<Button variant="secondary" onClick={refetch} disabled={loading}><RefreshCw size={16} /> تحديث</Button>}>
+    {loading ? <Loading /> : error ? <ErrorBox message={error} /> : !pending?.length ? (
+      <Empty text="لا توجد تقييمات معلقة للمراجعة. كل التقييمات المرسلة تمت مراجعتها." />
+    ) : (
+      <div style={{ display: 'grid', gap: 12 }}>
+        {pending.map((review) => (
+          <article key={review.id} style={{ ...card, display: 'grid', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <strong style={{ color: '#b8860b', letterSpacing: 1 }}>{renderStars(review.rating)}</strong>
+              <small style={quiet}>{timeAgo(review.created_at)}</small>
+            </div>
+            <div><strong>{productName(review.product_id)}</strong>{review.title ? ` — ${review.title}` : ''}</div>
+            {review.body && <p style={{ ...quiet, lineHeight: 1.8 }}>{review.body}</p>}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Button disabled={busyId === review.id} onClick={() => void act(review, true)}><Check size={15} /> اعتماد</Button>
+              <Button variant="outline" disabled={busyId === review.id} onClick={() => void act(review, false)}><X size={15} /> رفض وحذف</Button>
+            </div>
+          </article>
+        ))}
+      </div>
+    )}
+  </AdminPage>;
 }
 
 export function Devices({ onNotice }: { onNotice: (m: string) => void }) {
